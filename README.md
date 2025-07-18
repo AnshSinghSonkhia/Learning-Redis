@@ -244,3 +244,76 @@ maxmemory-policy allkeys-lru
 
 For more details, see the [Redis eviction policy documentation](https://redis.io/docs/management/cache/eviction/).
 
+# Redis Data Persistence
+
+Redis supports multiple persistence options to ensure data durability and recovery after restarts or failures.
+
+## Persistence Mechanisms
+
+- **RDB (Redis Database Backup):**  
+    Periodically saves a snapshot of your dataset to disk. Fast and compact, but may lose recent data if Redis crashes.
+
+- **AOF (Append Only File):**  
+    Logs every write operation received by the server. Provides better durability but can be slower and result in larger files.
+
+- **Hybrid Approach:**  
+    You can enable both RDB and AOF for a balance between performance and durability.
+
+## Configuring Persistence
+
+You can configure persistence in `redis.conf`:
+
+```
+save 900 1
+save 300 10
+appendonly yes
+```
+
+- `save` lines configure RDB snapshots (e.g., after 10 changes in 300 seconds).
+- `appendonly yes` enables AOF.
+
+For more, see the [Redis persistence documentation](https://redis.io/docs/management/persistence/).
+
+# Redis Security Basics
+
+Redis is designed to be accessed by trusted clients inside trusted environments. By default, it has minimal security features.
+
+## Security Recommendations
+
+- **Bind to localhost** or use firewalls to restrict access.
+- **Set a password** using the `requirepass` directive in `redis.conf`.
+- **Disable dangerous commands** with the `rename-command` option.
+- **Use TLS/SSL** for encrypted connections if needed.
+
+For more, see the [Redis security documentation](https://redis.io/docs/management/security/).
+
+# Redis Pub/Sub
+
+Redis supports publish/subscribe messaging, allowing clients to broadcast messages to multiple subscribers in real time.
+
+## Example
+
+```sh
+# In one terminal (subscriber)
+redis-cli SUBSCRIBE news
+
+# In another terminal (publisher)
+redis-cli PUBLISH news "Hello, Redis Pub/Sub!"
+```
+
+Pub/Sub is useful for notifications, chat systems, and real-time updates.
+
+# Redis Transactions
+
+Redis supports transactions using the `MULTI`, `EXEC`, `DISCARD`, and `WATCH` commands, allowing you to execute multiple commands atomically.
+
+## Example
+
+```sh
+MULTI
+INCR counter
+INCR counter
+EXEC
+```
+
+For more, see the [Redis transactions documentation](https://redis.io/docs/manual/transactions/).
