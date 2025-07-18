@@ -137,6 +137,110 @@ You can use tools like **RedisInsight** or **Another Redis Desktop Manager (RDM)
 You can now browse keys, run commands, and visualize your Redis data easily.
 
 
+# Concept of Cache Invalidation in Redis
 
----
-Feel free to explore the code and examples in this repository to learn more about Redis!
+Cache invalidation is the process of removing or updating cached data when the underlying data changes, ensuring that applications do not serve stale or outdated information.
+
+### Why is Cache Invalidation Important?
+- **Consistency:** Ensures users always receive the most up-to-date data.
+- **Efficiency:** Prevents unnecessary database queries by only updating cache when needed.
+- **Correctness:** Avoids serving incorrect or obsolete data from cache.
+
+### Common Cache Invalidation Strategies
+
+1. **Time-Based Expiry (TTL):**
+    - Set a time-to-live (TTL) on cache keys using the `EXPIRE` command.
+    - After the TTL expires, Redis automatically removes the key.
+    - Example:
+      ```sh
+      SET user:123:name "Alice"
+      EXPIRE user:123:name 3600  # Expires in 1 hour
+      ```
+    - Disadvantages: 
+        - Risk of serving stale data
+
+2. **Manual Invalidation:**
+    - Explicitly delete or update cache keys when the underlying data changes.
+    - Example:
+      ```sh
+      DEL user:123:name
+      ```
+
+3. **Direct / Immediate Invalidation:**
+    - Programmatically invalidate cache entries as soon as a specific user action occurs, giving full control to the application.
+    - Common in REST APIs where cache is invalidated immediately after a POST/PUT/DELETE request.
+    - Example:
+      ```python
+      # After updating user data via API
+      redis.delete(f"user:{user_id}:name")
+      ```
+    - Disadvantages:
+        - Can increase load on the cache server
+        - May require complex retry logic to ensure consistency
+
+4. **Write-Through / Write-Behind:**
+    - Update both the cache and the database simultaneously (write-through).
+    - Or, update the database first and then invalidate or update the cache (write-behind).
+
+5. **Cache Aside (Lazy Loading):**
+    - Application checks cache first; if not found, loads from database and updates cache.
+    - When data changes, invalidate or update the relevant cache entry.
+
+### Example: Cache Aside Pattern in Redis (Pseudocode)
+```python
+def get_user(user_id):
+     user = redis.get(f"user:{user_id}")
+     if user is None:
+          user = db.query_user(user_id)
+          redis.set(f"user:{user_id}", user, ex=3600)
+     return user
+
+def update_user(user_id, new_data):
+     db.update_user(user_id, new_data)
+     redis.delete(f"user:{user_id}")  # Invalidate cache
+```
+
+### Best Practices
+- Always invalidate or update cache after modifying the underlying data.
+- Use TTLs to prevent stale data from persisting indefinitely.
+- Choose the invalidation strategy that best fits your application's consistency and performance needs.
+
+For more details, see the [Redis documentation on key expiration](https://redis.io/docs/manual/key-expiry/).
+
+
+# Redis Eviction Policies
+
+When Redis runs out of memory, it uses eviction policies to decide which keys to remove to make space for new data. The eviction policy you choose affects cache hit rates, memory usage, and application behavior.
+
+### Common Eviction Policies
+
+- **noeviction**: (Default) Returns an error when memory limit is reached and the client tries to insert more data.
+- **allkeys-lru**: Removes the least recently used (LRU) key from all keys.
+- **volatile-lru**: Removes the least recently used key from keys with an expiration set.
+- **allkeys-random**: Removes a random key from all keys.
+- **volatile-random**: Removes a random key from keys with an expiration set.
+- **volatile-ttl**: Removes the key with the nearest expiration time (TTL) among keys with an expiration set.
+
+### How to Set an Eviction Policy
+
+You can set the eviction policy in your `redis.conf` file or via the command line:
+
+```sh
+redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
+```
+
+Or in `redis.conf`:
+
+```
+maxmemory 256mb
+maxmemory-policy allkeys-lru
+```
+
+### Choosing the Right Policy
+
+- Use **allkeys-lru** for general caching to maximize cache hit rate.
+- Use **volatile-lru** if only a subset of keys have TTLs and you want to evict only those.
+- Use **noeviction** if you want to avoid accidental data loss (but risk errors on writes).
+
+For more details, see the [Redis eviction policy documentation](https://redis.io/docs/management/cache/eviction/).
+
